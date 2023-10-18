@@ -6,7 +6,12 @@
 // TX port. Connect this to the Arduino RX pin. Connect the connector shield to
 // GND on the Arduino.
 
+#define SERIAL_DEBUG 0
+
 void setup() {
+#if SERIAL_DEBUG
+  Serial.begin(9600);
+#endif
   Serial1.begin(115200);
   Joystick.begin(false);
 }
@@ -36,28 +41,43 @@ uint8_t bytesRead = 0;
 uint8_t pot_msg_buf[MSG_POT_LEN];
 
 // ch = 1,2,3,4,5,6
-int16_t get_channel_value(uint8_t ch) {
+int16_t get_raw_channel_value(uint8_t ch) {
   if (ch < 1 || ch > 6) {
     return 0;
   }
-  uint16_t value = (pot_msg_buf[2 * ch] << 8 | pot_msg_buf[2 * ch + 1]);
-  return map(value, 1000, 2000, -127, 128);
+  return (pot_msg_buf[2 * ch] << 8 | pot_msg_buf[2 * ch + 1]);
+}
+
+int16_t get_channel_value(uint8_t ch) {
+  int16_t value = get_raw_channel_value(ch);
+  return constrain(map(value, 1000, 2000, -127, 128), -127, 128);
 }
 
 void updatePotValues() {
-//  Serial.print("pot msg: ");
-//  for (uint8_t ch = 1; ch <= 6; ch++) {
-//    Serial.print(get_channel_value(ch));
-//    Serial.print(" ");
-//  }
-//  Serial.println();
+#if SERIAL_DEBUG
+  Serial.print("pot in: ");
+  for (uint8_t ch = 1; ch <= 6; ch++) {
+    Serial.print(get_raw_channel_value(ch));
+    Serial.print(" ");
+  }
+  Serial.println();
+
+  Serial.print("pot out: ");
+  for (uint8_t ch = 1; ch <= 6; ch++) {
+    Serial.print(get_channel_value(ch));
+    Serial.print(" ");
+  }
+  Serial.println();
+#endif
 
   Joystick.setXAxis(get_channel_value(1));
   Joystick.setYAxis(get_channel_value(2));
   Joystick.setThrottle(get_channel_value(3));
-  Joystick.setZAxisRotation(get_channel_value(4));
+  Joystick.setRudder(get_channel_value(4));
+
   Joystick.setZAxis(get_channel_value(5));
   Joystick.setXAxisRotation(get_channel_value(6));
+
   Joystick.sendState();
 }
 
